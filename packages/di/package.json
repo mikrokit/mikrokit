@@ -1,6 +1,6 @@
 {
   "name": "@mikrokit/di",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "A lightweight TypeScript dependency injection container that uses only strip-tipes compliant methodologies and does not rely on reflect-metadata",
   "type": "module",
   "main": "dist/index.js",
