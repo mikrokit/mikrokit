@@ -1,5 +1,5 @@
-import { createContainer } from './container'
-import { createModule } from './module'
+import { createContainer, Container } from './container'
+import { createModule, Module } from './module'
 import {
   createProviderToken,
   defineProvider,
@@ -13,6 +13,8 @@ export {
   createProviderToken,
   defineProvider,
   defineStaticProvider,
+  Container,
+  Module,
   type Injector,
   type ProviderFactory,
   type ProviderToken,

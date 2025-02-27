@@ -6,7 +6,9 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "dependency",
@@ -26,6 +28,8 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "typescript": "~5.7.3"
+    "@vitest/coverage-v8": "3.0.7",
+    "typescript": "~5.7.3",
+    "vitest": "~3.0.7"
   }
 }
