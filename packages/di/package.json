@@ -1,0 +1,31 @@
+{
+  "name": "@mikrokit/di",
+  "version": "1.0.0",
+  "description": "A lightweight TypeScript dependency injection container that uses only strip-tipes compliant methodologies and does not rely on reflect-metadata",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [
+    "dependency",
+    "injection",
+    "ioc",
+    "di",
+    "dic",
+    "container",
+    "lightweight",
+    "typesafe"
+  ],
+  "author": "Artem Tarasenko <shabashab.04@gmail.com>",
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "~5.7.3"
+  }
+}
