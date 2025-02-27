@@ -1,0 +1,33 @@
+{
+  "name": "project",
+  "packageManager": "pnpm@9.9.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "prettier": "@inc-dev/prettier-config",
+  "scripts": {
+    "lint": "eslint . --ext ts,js,vue --fix",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@inc-dev/eslint-config": "^1.2.0",
+    "@inc-dev/prettier-config": "^1.1.0",
+    "@types/eslint": "^8",
+    "commitlint": "^19.0.3",
+    "eslint": "^8.57.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-tailwindcss": "^3.17.4",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "prettier": "^3.2.5",
+    "syncpack": "^13.0.0"
+  },
+  "lint-staged": {
+    "*.{json,yml,css,md}": "prettier --write",
+    "*.{js,ts,vue}": "eslint --fix"
+  },
+  "dependencies": {
+    "@commitlint/config-conventional": "^19.1.0",
+    "turbo": "^2.1.0"
+  }
+}

@@ -1,0 +1,5 @@
+#!/bin/sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+message="$(cat $1)"
+echo $message | pnpm commitlint
