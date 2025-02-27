@@ -24,7 +24,7 @@ export class Container extends Module implements Injector {
   ): Promise<T> {
     if (this.currentInstantiationTrackingContext.has(token)) {
       throw new Error(
-        'Circular dependency on injection of key ' + token.toString()
+        `Provider ${token.toString()} is already being instantiated. It can be caused by either a circular dependency or not awaiting the inject calls`
       )
     }
 
