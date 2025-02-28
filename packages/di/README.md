@@ -20,199 +20,153 @@ yarn add @mikrokit/di
 pnpm add @mikrokit/di
 ```
 
+# Basic concepts
+
+## Provider
+
+Provider is... well it's basically anything. Anything that is provided to injection container or module is a provider.
+
+Any provider is defined as a factory function that accepts `Injector`, that is injection context that allows injecting other providers.
+
+Static values are defined as factories too, which adds a little overhead but don't add too much noize in codebase of the library and the API
+
+The providers are provided into modules/containers using `Provider Token`, which acts like an identifier for provider without declaring its specific implementation
+
+### Asynchronous providers
+
+If there is some asynchronous action that should be taken on provider instantiation, the factory can also be async.
+
+This, however, creates a limitation: **all injections are asynchronous**.
+
+## Provider token
+
+Provider token is a typed "pointer" to some provider. It is used as an injection-key
+
+The provider tokens in `@mikrokit/di` are based on javascript symbols. This way, we ensure that each token is completely unique.
+
+There are two types of tokens: **single tokens** and **group tokens**
+
+### Single Tokens
+
+Single token is a token that references only one provider in the injection. It can only be provided once and will fail to provide the second time.
+
+Most of thins in your codebase will probably be referenced by a single-type token, such as services, repositories, configurations etc.
+
+### Group tokens
+
+Group token is a token that can reference 0 or more providers. There is no limit on how many providers you can provide using this token.
+
+Group tokens are great for defining providers that would be used on higher-levels. For example, API handlers or queue system queues.
+
+## Container
+
+Container is a thing that allows you to provide and inject your providers. It is basically an injection container itself.
+
+## Module
+
+Module is a simple part that allows grouping of some providers into one thing, which can then either be:
+
+- Imported in another module
+- Imported in container
+
+This allows creating cleaner definition files
+
+## Injector
+
+Injector is passed inside your providers and is basically a `Container`, but covered with the `Injector` interface so we don't have situations when providers are provided inside providers (which is not good)
+
+It allows injecting other providers by a token
+
+## Provision scope
+
+Library supports two provision scoped defined in `ProvideScope` enum:
+
+- `SINGLETON` - uses a shared copy of a provider
+- `TRANSIENT` - uses a freshly instantiated copy of a provider. _Note: if a provider is injected as transient, it doesn't mean that its sub-dependencies will be injected as transient as well. If provider uses singleton injection internally, then its dependencies will be loaded as singletons_
+
+# Getting started
+
 ## Basic Usage
 
-```typescript
-import {
-  createContainer,
-  createProviderToken,
-  defineProvider,
-  defineStaticProvider,
-} from '@mikrokit/di'
+[/examples/01-basic-usage/](Example link)
 
-// 1. Define provider factories and tokens
+Logger provider:
 
-const loggerFactory = defineStaticProvider({
-  log: (message) => console.log(`[INFO] ${message}`),
-  error: (message, error) => console.error(`[ERROR] ${message}`, error),
+```ts
+import { createProviderToken, defineProvider } from '@mikrokit/di'
+
+// Factory of the service
+export const loggerFactory = defineProvider(() => {
+  const info = (message: string) => {
+    console.log(`[INFO]: ${message}`)
+  }
+
+  const error = (message: string) => {
+    console.error(`[ERROR]: ${message}`)
+  }
+
+  return {
+    info,
+    error,
+  }
 })
 
-const Logger = createProviderToken<Logger>()
+// Type of logger is automatically inferred from the factory definition
+export const Logger = createProviderToken(loggerFactory)
+```
 
-const usersServiceFactory = defineProvider(async (injector) => {
+Fetcher provider
+
+```ts
+import { createProviderToken, defineProvider } from '@mikrokit/di'
+import { Logger } from './logger'
+
+export const fetcherFactory = defineProvider(async (injector) => {
+  // Injecting logger inside fetcher
   const logger = await injector.inject(Logger)
 
-  const createUser = async (name: string) => {
-    logger.log(`User with name ${name} is created`)
-
-    return {
-      name,
+  const fetchAndLogData = async (url: string) => {
+    try {
+      const response = await fetch(url)
+      const data = await response.text()
+      logger.info(data)
+    } catch (e) {
+      logger.error(`${e}`)
     }
   }
 
   return {
-    createUser,
+    fetchAndLogData,
   }
 })
 
-const UsersService = createProviderToken(usersServiceFactory)
+export const Fetcher = createProviderToken(fetcherFactory)
+```
 
-// 2. Create a container
-const container = createContainer()
+And finally, compose it all together in a main application file:
 
-// 3. Register your providers
-container
-  .provide(Logger, loggerFactory)
-  .provide(UsersService, usersServiceFactory)
+```ts
+import { createContainer } from '@mikrokit/di'
+import { Logger, loggerFactory } from './logger'
+import { Fetcher, fetcherFactory } from './fetcher'
 
-// 4. Use the container to get instances of your dependencies
-const main = async () => {
-  const userService = await container.inject(UserServiceToken)
-  userService.createUser('John Doe')
+// Just a wrapper for async code
+const bootstrap = async () => {
+  const container = createContainer()
+    .provide(Logger, loggerFactory)
+    .provide(Fetcher, fetcherFactory)
+
+  const fetcher = await container.inject(Fetcher)
+
+  await fetcher.fetchAndLogData('https://jsonplaceholder.typicode.com/todos/1')
 }
 
-main()
+bootstrap()
 ```
 
-## Core Concepts
+# Testing
 
-### Tokens
-
-Tokens are symbols used to identify dependencies. They are created using the `createProviderToken` function:
-
-```typescript
-// Create a token by type
-const LoggerToken = createProviderToken<Logger>()
-
-const usersServiceFactory = defineProvider(async (injector) => {
-  // ...
-})
-
-// Create token from factory
-const UsersService = createProviderToken(usersServiceFactory)
-
-// Create a token with a name (helps with debugging)
-const UserServiceNamed = createProviderToken(usersServiceFactory, 'UserService')
-```
-
-### Providers
-
-Providers define how to create instances of your dependencies. There are two ways to create providers:
-
-#### Static Provider
-
-Use `defineStaticProvider` for values that don't have dependencies:
-
-```typescript
-// Define a static provider that always returns the same value
-const configProvider = defineStaticProvider({
-  apiUrl: 'https://api.example.com',
-  timeout: 5000,
-})
-```
-
-#### Factory Provider
-
-Use `defineProvider` for dependencies that need to inject other dependencies:
-
-```typescript
-// Define a provider that needs to inject other dependencies
-const userServiceProvider = defineProvider(async (injector) => {
-  const logger = await injector.inject(LoggerToken)
-  const config = await injector.inject(ConfigToken)
-  return new UserService(logger, config)
-})
-```
-
-### Scope
-
-Dependencies can be registered with different scopes:
-
-- **SINGLETON** (default): The provider is instantiated once and reused
-- **TRANSIENT**: The provider is instantiated each time it is injected
-
-```typescript
-// Import from the container module to use scopes
-import { ProvideScope } from '@mikrokit/di'
-
-// Get a singleton instance (default)
-const logger = await container.inject(LoggerToken)
-
-// Always get a new instance
-const freshLogger = await container.inject(LoggerToken, ProvideScope.TRANSIENT)
-```
-
-## Modules
-
-Modules help organize related providers:
-
-```typescript
-import { createModule } from 'ts-dependency-injection'
-
-// Create a module for logging
-const loggingModule = createModule()
-  .provide(LoggerToken, loggerProvider)
-  .provide(LogFormatterToken, formatterProvider)
-
-// Create a module for database
-const databaseModule = createModule()
-  .provide(DatabaseToken, databaseProvider)
-  .provide(RepositoryToken, repositoryProvider)
-
-// Create a container and import all modules
-const container = createContainer().import(loggingModule).import(databaseModule)
-```
-
-## Advanced Usage
-
-### Asynchronous Providers
-
-Providers can be asynchronous, which is useful for dependencies that need initialization:
-
-```typescript
-const DatabaseToken = createProviderToken<Database>()
-
-const databaseProvider = defineProvider(async () => {
-  const db = new Database()
-  await db.connect()
-  return db
-})
-
-container.provide(DatabaseToken, databaseProvider)
-```
-
-### Circular Dependency Detection
-
-The container automatically detects circular dependencies and throws a clear error message:
-
-```typescript
-// This will throw an error during injection
-const CircularA = createProviderToken<ServiceA>()
-const CircularB = createProviderToken<ServiceB>()
-
-container
-  .provide(
-    CircularA,
-    defineProvider(async (injector) => {
-      const serviceB = await injector.inject(CircularB)
-      return new ServiceA(serviceB)
-    })
-  )
-  .provide(
-    CircularB,
-    defineProvider(async (injector) => {
-      const serviceA = await injector.inject(CircularA)
-      return new ServiceB(serviceA)
-    })
-  )
-
-// Will throw: "Circular dependency on injection of key Symbol(CircularA)"
-await container.inject(CircularA)
-```
-
-## Testing
-
-The library makes it easy to test your application by swapping dependencies:
+One of the greatest advantages of dependency injection is code being easier to **test**. Example of how it might work:
 
 ```typescript
 // In your test
