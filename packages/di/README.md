@@ -88,7 +88,7 @@ Library supports two provision scoped defined in `ProvideScope` enum:
 
 ## Basic Usage
 
-[/examples/01-basic-usage/](Example link)
+You can find this example in `examples/01-basic-usage`
 
 Logger provider:
 
