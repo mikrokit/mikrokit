@@ -22,8 +22,11 @@ export type InternalProviderDefinition =
 export class Module {
   protected providers: Map<Symbol, InternalProviderDefinition>
 
-  constructor(public moduleName?: string) {
-    this.providers = new Map()
+  constructor(
+    public moduleName?: string,
+    providers?: Map<Symbol, InternalProviderDefinition>
+  ) {
+    this.providers = providers ?? new Map()
   }
 
   provide<T>(token: ProviderToken<T>, factory: ProviderFactory<T>): this {

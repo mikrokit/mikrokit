@@ -16,15 +16,23 @@ export class Container extends Module implements Injector {
   private readonly instantiatedGroupSingletonProviders: Map<Symbol, any[]>
 
   // Tracks active injecting symbols in order to see if we stumbled upon a circular dependency
-  private readonly currentInstantiationTrackingContext: Set<Symbol>
+  private readonly injectionStack: Symbol[]
 
-  constructor() {
-    super()
+  private constructor(parentContainer?: Container, injectionItem?: Symbol) {
+    super(parentContainer?.moduleName, parentContainer?.providers)
 
-    this.instantiatedSingleSingletonProviders = new Map()
-    this.instantiatedGroupSingletonProviders = new Map()
+    this.instantiatedSingleSingletonProviders =
+      parentContainer?.instantiatedSingleSingletonProviders ?? new Map()
+    this.instantiatedGroupSingletonProviders =
+      parentContainer?.instantiatedGroupSingletonProviders ?? new Map()
 
-    this.currentInstantiationTrackingContext = new Set()
+    this.injectionStack = injectionItem
+      ? [...(parentContainer?.injectionStack ?? []), injectionItem]
+      : []
+  }
+
+  static createEmpty(): Container {
+    return new Container()
   }
 
   // We need those overloads to make sure that the return type is correct
@@ -35,34 +43,25 @@ export class Container extends Module implements Injector {
     token: ProviderToken<T>,
     scope: ProvideScope = ProvideScope.SINGLETON
   ): Promise<T | T[]> {
-    if (this.currentInstantiationTrackingContext.has(token)) {
+    if (this.injectionStack.includes(token)) {
       throw new Error(
         `Provider ${token.toString()} is already being instantiated. This error can be caused by either a circular dependency or not awaiting the inject calls`
       )
     }
 
-    this.currentInstantiationTrackingContext.add(token)
-
-    try {
-      if (token._.group) {
-        const result = await this.injectGroup(
-          token as GroupProviderToken<T>,
-          scope
-        )
-        this.currentInstantiationTrackingContext.delete(token)
-        return result
-      }
-
-      const result = await this.injectSingle(
-        token as SingleProviderToken<T>,
+    if (token._.group) {
+      const result = await this.injectGroup(
+        token as GroupProviderToken<T>,
         scope
       )
-      this.currentInstantiationTrackingContext.delete(token)
       return result
-    } catch (e) {
-      this.currentInstantiationTrackingContext.delete(token)
-      throw e
     }
+
+    const result = await this.injectSingle(
+      token as SingleProviderToken<T>,
+      scope
+    )
+    return result
   }
 
   private async injectSingle<T>(
@@ -92,7 +91,7 @@ export class Container extends Module implements Injector {
       )
     }
 
-    const result = await definition.factory(this)
+    const result = await definition.factory(new Container(this, token))
 
     if (scope === ProvideScope.SINGLETON) {
       this.instantiatedSingleSingletonProviders.set(token, result)
@@ -140,5 +139,5 @@ export class Container extends Module implements Injector {
 }
 
 export const createContainer = () => {
-  return new Container()
+  return Container.createEmpty()
 }
