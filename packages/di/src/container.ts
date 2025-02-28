@@ -27,6 +27,10 @@ export class Container extends Module implements Injector {
     this.currentInstantiationTrackingContext = new Set()
   }
 
+  // We need those overloads to make sure that the return type is correct
+  inject<T>(token: SingleProviderToken<T>, scope?: ProvideScope): Promise<T>
+  inject<T>(token: GroupProviderToken<T>, scope?: ProvideScope): Promise<T[]>
+
   async inject<T>(
     token: ProviderToken<T>,
     scope: ProvideScope = ProvideScope.SINGLETON
