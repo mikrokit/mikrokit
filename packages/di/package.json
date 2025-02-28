@@ -1,7 +1,7 @@
 {
   "name": "@mikrokit/di",
   "description": "A lightweight TypeScript dependency injection container that uses only strip-tipes compliant methodologies and does not rely on reflect-metadata",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": "Artem Tarasenko <shabashab.04@gmail.com>",
   "homepage": "https://github.com/mikrokit/mikrokit",
   "license": "MIT",
@@ -27,7 +27,8 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "prepublish": "pnpm run build"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "3.0.7",

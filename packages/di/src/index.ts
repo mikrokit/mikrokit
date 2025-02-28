@@ -2,6 +2,7 @@ import { createContainer, Container, ProvideScope } from './container'
 import { createModule, Module } from './module'
 import {
   createProviderToken,
+  createGroupProviderToken,
   defineProvider,
   defineStaticProvider,
 } from './helpers'
@@ -11,6 +12,7 @@ export {
   createContainer,
   createModule,
   createProviderToken,
+  createGroupProviderToken,
   defineProvider,
   defineStaticProvider,
   Container,
