@@ -1,4 +1,4 @@
-import { createContainer, Container } from './container'
+import { createContainer, Container, ProvideScope } from './container'
 import { createModule, Module } from './module'
 import {
   createProviderToken,
@@ -15,6 +15,7 @@ export {
   defineStaticProvider,
   Container,
   Module,
+  ProvideScope,
   type Injector,
   type ProviderFactory,
   type ProviderToken,

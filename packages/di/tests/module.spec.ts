@@ -5,7 +5,8 @@ import {
   createProviderToken,
   defineStaticProvider,
   Module,
-} from 'src'
+} from '../src'
+import { createGroupProviderToken } from '../src/helpers'
 
 // Test helper class that extends Module to expose protected properties for testing
 class TestModule extends Module {
@@ -50,7 +51,10 @@ describe('Module', () => {
     // Verify the provider is stored in the module's providers map
     const providers = module.getProviders()
     expect(providers.has(Provider)).toBe(true)
-    expect(providers.get(Provider)).toBe(providerFactory)
+    expect(providers.get(Provider)).toStrictEqual({
+      factory: providerFactory,
+      group: false,
+    })
   })
 
   it('should throw when trying to re-provide the same token', () => {
@@ -63,7 +67,7 @@ describe('Module', () => {
 
     expect(() => {
       module.provide(Provider, providerFactory)
-    }).toThrowError('Trying to re-inject provider for symbol')
+    }).toThrowError('Trying to re-provide single-type provider for Symbol()')
   })
 
   it('should allow creating a module with a name', () => {
@@ -91,8 +95,14 @@ describe('Module', () => {
       const providers = module1.getProviders()
       expect(providers.has(Provider1)).toBe(true)
       expect(providers.has(Provider2)).toBe(true)
-      expect(providers.get(Provider1)).toBe(provider1Factory)
-      expect(providers.get(Provider2)).toBe(provider2Factory)
+      expect(providers.get(Provider1)).toStrictEqual({
+        factory: provider1Factory,
+        group: false,
+      })
+      expect(providers.get(Provider2)).toStrictEqual({
+        factory: provider2Factory,
+        group: false,
+      })
     })
 
     it('should return the module instance after importing', () => {
@@ -113,7 +123,9 @@ describe('Module', () => {
 
       expect(() => {
         module1.import(module2)
-      }).toThrowError('Cannot import module, duplicate token')
+      }).toThrowError(
+        'Trying to re-provide single-type provider for Symbol(provider)'
+      )
     })
 
     it('should import multiple providers from another module', () => {
@@ -183,7 +195,9 @@ describe('Module', () => {
       // Second provide with same token should throw
       expect(() => {
         module.provide(Provider, providerFactory)
-      }).toThrowError('Trying to re-inject provider')
+      }).toThrowError(
+        'Trying to re-provide single-type provider for Symbol(uniqueToken)'
+      )
     })
 
     it('should throw when importing modules with duplicate tokens', () => {
@@ -195,7 +209,9 @@ describe('Module', () => {
 
       expect(() => {
         moduleA.import(moduleB)
-      }).toThrowError('Cannot import module, duplicate token')
+      }).toThrowError(
+        'Trying to re-provide single-type provider for Symbol(duplicateToken)'
+      )
     })
 
     it('should support method chaining for provide and import', () => {
@@ -216,6 +232,79 @@ describe('Module', () => {
 
       // No need to check internals, just verify it didn't throw
       expect(module).toBeInstanceOf(Module)
+    })
+
+    it('should throw if trying to re-provide group-type provider as single-type one', () => {
+      const token = createGroupProviderToken<string>()
+
+      const module = createModule()
+
+      module.provide(token, defineStaticProvider('test-1'))
+
+      // @ts-expect-error - testing private property change
+      token._.group = false
+
+      expect(() =>
+        module.provide(token, defineStaticProvider('test-2'))
+      ).toThrowError(
+        'Trying to re-provide single-type provider Symbol() as group-type provider'
+      )
+    })
+
+    it('should throw if trying to re-provide single-type provider as group-type one', () => {
+      const token = createProviderToken<string>()
+
+      const module = createModule()
+
+      module.provide(token, defineStaticProvider('test-1'))
+
+      // @ts-expect-error - testing private property change
+      token._.group = true
+
+      expect(() =>
+        module.provide(token, defineStaticProvider('test-2'))
+      ).toThrow()
+    })
+
+    it('should merge group-type providers when importing', () => {
+      const token = createGroupProviderToken<string>()
+
+      const module1 = createTestModule()
+      const module2 = createModule()
+
+      const provider1 = defineStaticProvider('test1')
+      const provider2 = defineStaticProvider('test2')
+
+      module1.provide(token, provider1)
+      module2.provide(token, provider2)
+
+      module1.import(module2)
+
+      expect(module1.getProviders().get(token)).toStrictEqual({
+        group: true,
+        factories: [provider1, provider2],
+      })
+    })
+
+    it('should throw on import if same symbol modules have different types in different modules', () => {
+      const token = createGroupProviderToken<string>()
+
+      const module1 = createTestModule()
+      const module2 = createModule()
+
+      const provider1 = defineStaticProvider('test1')
+      const provider2 = defineStaticProvider('test2')
+
+      module1.provide(token, provider1)
+
+      // @ts-expect-error - testing private property change
+      token._.group = false
+
+      module2.provide(token, provider2)
+
+      expect(() => module1.import(module2)).toThrowError(
+        'Trying to re-provide group-type provider Symbol() that was already provided as single-type provider'
+      )
     })
   })
 })
