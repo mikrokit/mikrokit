@@ -1,7 +1,7 @@
-import { createProviderToken, defineProvider } from '@mikrokit/di'
+import { defineProvider } from '@mikrokit/di'
 import { Logger } from './logger'
 
-export const fetcherFactory = defineProvider(async (injector) => {
+export const Fetcher = defineProvider(async (injector) => {
   const logger = await injector.inject(Logger)
 
   const fetchAndLogData = async (url: string) => {
@@ -18,5 +18,3 @@ export const fetcherFactory = defineProvider(async (injector) => {
     fetchAndLogData,
   }
 })
-
-export const Fetcher = createProviderToken(fetcherFactory)

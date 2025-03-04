@@ -1,11 +1,9 @@
 import { createContainer } from '@mikrokit/di'
-import { Logger, loggerFactory } from './logger'
-import { Fetcher, fetcherFactory } from './fetcher'
+import { Logger } from './logger'
+import { Fetcher } from './fetcher'
 
 const bootstrap = async () => {
-  const container = createContainer()
-    .provide(Logger, loggerFactory)
-    .provide(Fetcher, fetcherFactory)
+  const container = createContainer().provide(Logger).provide(Fetcher)
 
   const fetcher = await container.inject(Fetcher)
 

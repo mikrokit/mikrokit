@@ -3,6 +3,16 @@ import type { ProvideScope } from './container'
 export interface Injector {
   inject<T>(token: SingleProviderToken<T>, scope?: ProvideScope): Promise<T>
   inject<T>(token: GroupProviderToken<T>, scope?: ProvideScope): Promise<T[]>
+
+  inject<TOriginalTokenized, T>(
+    tokenized: Tokenized<TOriginalTokenized, T, SingleProviderToken<T>>,
+    scope?: ProvideScope
+  ): Promise<T>
+
+  inject<TOriginalTokenized, T>(
+    tokenized: Tokenized<TOriginalTokenized, T, GroupProviderToken<T>>,
+    scope?: ProvideScope
+  ): Promise<T[]>
 }
 
 export type SingleProviderToken<T> = Symbol & {

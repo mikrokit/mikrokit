@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
-import { createProviderToken, defineProvider } from '@mikrokit/di'
+import { defineProvider } from '@mikrokit/di'
 
-export const loggerFactory = defineProvider(() => {
+export const Logger = defineProvider(() => {
   const info = (message: string) => {
     console.log(`[INFO]: ${message}`)
   }
@@ -15,5 +15,3 @@ export const loggerFactory = defineProvider(() => {
     error,
   }
 })
-
-export const Logger = createProviderToken(loggerFactory)

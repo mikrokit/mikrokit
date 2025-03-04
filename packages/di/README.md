@@ -20,6 +20,105 @@ yarn add @mikrokit/di
 pnpm add @mikrokit/di
 ```
 
+# Getting started
+
+## 1. Create a container
+
+Container is a thing that will manage you dependencies and give you a way to inject them
+
+```ts
+import { createContainer } from '@mikrokit/di'
+
+const container = createContainer()
+```
+
+## 2. Define a provider
+
+The simplest entity of dependency injection is a provider.
+
+```ts
+import { defineProvider } from '@mikrokit/di'
+
+export const Logger = defineProvider(() => {
+  const info = (message: string) => {
+    console.log(`[INFO]: ${message}`)
+  }
+
+  const error = (message: string) => {
+    console.error(`[ERROR]: ${message}`)
+  }
+
+  return {
+    info,
+    error,
+  }
+})
+```
+
+## 3. Provide a provider
+
+In order for `Logger` to be accessible through `container` we will need to provide it to the container.
+
+```ts
+import { createContainer } from '@mikrokit/di'
+import { Logger } from './logger'
+
+const container = createContainer().provide(Logger)
+```
+
+## 4. Inject a provider
+
+In order to instantiate and get the provider you provided, we can use `.inject`. Warning: this call **always returns promise**
+
+```ts
+// ...
+
+await container.inject(Logger)
+```
+
+## 5. Injecting a provider into another provider
+
+That's what we call DI. Let's define a different provider `Fetcher` for this. In order to inject `Logger` into `Fetcher` we will need to call `injector.inject` with the provider definition as a parameter. From this example we can actually see why `Logger` and `Fetcher` are named in PascalCase instead of camelCase - because when you will be referencing them to inject, you will probably use the camelCase version of name for the exact instance of the provider
+
+```ts
+import { defineProvider } from '@mikrokit/di'
+import { Logger } from './logger'
+
+export const Fetcher = defineProvider(async (injector) => {
+  const logger = await injector.inject(Logger)
+
+  const fetchAndLogData = async (url: string) => {
+    try {
+      const response = await fetch(url)
+      const data = await response.text()
+      logger.info(data)
+    } catch (e) {
+      logger.error(`${e}`)
+    }
+  }
+
+  return {
+    fetchAndLogData,
+  }
+})
+```
+
+## 6. Getting the `Fetcher`
+
+For this, we will need to provide both `Logger` and `Fetcher` into our container and just inject the `Fetcher`.
+
+\*NOTE: the order of `.provide` calls in container doesn't matter (at least for single providers)
+
+```ts
+import { createContainer } from '@mikrokit/di'
+import { Logger } from './logger'
+import { Fetcher } from './fetcher'
+
+const container = createContainer().provide(Logger).provide(Fetcher)
+
+const fetcher = await container.inject(Fetcher)
+```
+
 # Basic concepts
 
 ## Provider
@@ -30,11 +129,33 @@ Any provider is defined as a factory function that accepts `Injector`, that is i
 
 Static values are defined as factories too, which adds a little overhead but don't add too much noize in codebase of the library and the API
 
-The providers are provided into modules/containers using `Provider Token`, which acts like an identifier for provider without declaring its specific implementation
+The providers are provided into modules/containers using `Provider Token`, which acts like an identifier for provider without declaring its specific implementation.
+
+When you use `defineProvider` the token is generated automatically and is provided through the factory. If you don't want to have attached token automatically, you can use `defineProviderFactory`, which is only a type helper that doesn't do anything to the factory you provide to it.
+
+```ts
+// Both a factory and a token
+const MyProvider = defineProvider(() => 'test')
+
+// Only a function
+const myProviderFactory = defineProviderFactory(() => 'test')
+```
+
+For the cases when you already have the token that you will be defining a provider for (for example, this is the case for group providers), `defineProvider` can accept the token as a 2-nd parameter into it.
 
 ### Asynchronous providers
 
 If there is some asynchronous action that should be taken on provider instantiation, the factory can also be async.
+
+```ts
+const Redis = defineProvider(async () => {
+  const redis = new RedisConnection()
+
+  await redis.connect()
+
+  return redis
+})
+```
 
 This, however, creates a limitation: **all injections are asynchronous**.
 
@@ -84,86 +205,6 @@ Library supports two provision scoped defined in `ProvideScope` enum:
 - `SINGLETON` - uses a shared copy of a provider
 - `TRANSIENT` - uses a freshly instantiated copy of a provider. _Note: if a provider is injected as transient, it doesn't mean that its sub-dependencies will be injected as transient as well. If provider uses singleton injection internally, then its dependencies will be loaded as singletons_
 
-# Getting started
-
-## Basic Usage
-
-You can find this example in `examples/01-basic-usage`
-
-Logger provider:
-
-```ts
-import { createProviderToken, defineProvider } from '@mikrokit/di'
-
-// Factory of the service
-export const loggerFactory = defineProvider(() => {
-  const info = (message: string) => {
-    console.log(`[INFO]: ${message}`)
-  }
-
-  const error = (message: string) => {
-    console.error(`[ERROR]: ${message}`)
-  }
-
-  return {
-    info,
-    error,
-  }
-})
-
-// Type of logger is automatically inferred from the factory definition
-export const Logger = createProviderToken(loggerFactory)
-```
-
-Fetcher provider
-
-```ts
-import { createProviderToken, defineProvider } from '@mikrokit/di'
-import { Logger } from './logger'
-
-export const fetcherFactory = defineProvider(async (injector) => {
-  // Injecting logger inside fetcher
-  const logger = await injector.inject(Logger)
-
-  const fetchAndLogData = async (url: string) => {
-    try {
-      const response = await fetch(url)
-      const data = await response.text()
-      logger.info(data)
-    } catch (e) {
-      logger.error(`${e}`)
-    }
-  }
-
-  return {
-    fetchAndLogData,
-  }
-})
-
-export const Fetcher = createProviderToken(fetcherFactory)
-```
-
-And finally, compose it all together in a main application file:
-
-```ts
-import { createContainer } from '@mikrokit/di'
-import { Logger, loggerFactory } from './logger'
-import { Fetcher, fetcherFactory } from './fetcher'
-
-// Just a wrapper for async code
-const bootstrap = async () => {
-  const container = createContainer()
-    .provide(Logger, loggerFactory)
-    .provide(Fetcher, fetcherFactory)
-
-  const fetcher = await container.inject(Fetcher)
-
-  await fetcher.fetchAndLogData('https://jsonplaceholder.typicode.com/todos/1')
-}
-
-bootstrap()
-```
-
 # Testing
 
 One of the greatest advantages of dependency injection is code being easier to **test**. Example of how it might work:
@@ -173,11 +214,11 @@ One of the greatest advantages of dependency injection is code being easier to *
 const testContainer = createContainer()
 
 // Mock dependencies
-testContainer.provide(LoggerToken, defineStaticProvider(/* Mock code */))
-testContainer.provide(DatabaseToken, defineStaticProvider(/* Mock code */))
+testContainer.provide(Logger, defineStaticProvider(/* Mock code */))
+testContainer.provide(Fetcher, defineStaticProvider(/* Mock code */))
 
 // Test with mocked dependencies
-const userService = await testContainer.inject(UserServiceToken)
+const fetcher = await testContainer.inject(Fetcher)
 ```
 
 ## License
