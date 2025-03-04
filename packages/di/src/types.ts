@@ -26,4 +26,17 @@ export type GroupProviderToken<T> = Symbol & {
 
 export type ProviderToken<T> = SingleProviderToken<T> | GroupProviderToken<T>
 
+export type Tokenized<
+  TOriginal,
+  TProvider,
+  TToken extends ProviderToken<TProvider> = ProviderToken<TProvider>,
+> = TOriginal & {
+  token: TToken
+}
+
+export type TokenizedProviderFactory<
+  T,
+  TToken extends ProviderToken<T>,
+> = Tokenized<ProviderFactory<T>, T, TToken>
+
 export type ProviderFactory<T> = (injector: Injector) => Promise<T> | T

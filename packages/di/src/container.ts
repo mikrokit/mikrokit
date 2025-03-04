@@ -4,6 +4,7 @@ import type {
   Injector,
   ProviderToken,
   SingleProviderToken,
+  Tokenized,
 } from './types'
 
 export enum ProvideScope {
@@ -35,32 +36,44 @@ export class Container extends Module implements Injector {
     return new Container()
   }
 
-  // We need those overloads to make sure that the return type is correct
   inject<T>(token: SingleProviderToken<T>, scope?: ProvideScope): Promise<T>
   inject<T>(token: GroupProviderToken<T>, scope?: ProvideScope): Promise<T[]>
 
+  inject<TOriginalTokenized, T>(
+    tokenized: Tokenized<TOriginalTokenized, T, SingleProviderToken<T>>,
+    scope?: ProvideScope
+  ): Promise<T>
+
+  inject<TOriginalTokenized, T>(
+    tokenized: Tokenized<TOriginalTokenized, T, GroupProviderToken<T>>,
+    scope?: ProvideScope
+  ): Promise<T[]>
+
   async inject<T>(
-    token: ProviderToken<T>,
+    token: ProviderToken<T> | Tokenized<any, T>,
     scope: ProvideScope = ProvideScope.SINGLETON
   ): Promise<T | T[]> {
-    if (this.injectionStack.includes(token)) {
+    const normalizedToken = 'token' in token ? token.token : token
+
+    if (this.injectionStack.includes(normalizedToken)) {
       throw new Error(
-        `Provider ${token.toString()} is already being instantiated. This error can be caused by either a circular dependency or not awaiting the inject calls`
+        `Provider ${normalizedToken.toString()} is already being instantiated. This error can be caused by either a circular dependency or not awaiting the inject calls`
       )
     }
 
-    if (token._.group) {
+    if (normalizedToken._.group) {
       const result = await this.injectGroup(
-        token as GroupProviderToken<T>,
+        normalizedToken as GroupProviderToken<T>,
         scope
       )
       return result
     }
 
     const result = await this.injectSingle(
-      token as SingleProviderToken<T>,
+      normalizedToken as SingleProviderToken<T>,
       scope
     )
+
     return result
   }
 

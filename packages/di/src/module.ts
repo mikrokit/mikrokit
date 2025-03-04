@@ -3,6 +3,7 @@ import type {
   ProviderFactory,
   ProviderToken,
   SingleProviderToken,
+  TokenizedProviderFactory,
 } from './types'
 
 export type InternalGroupProviderDefinition = {
@@ -29,11 +30,36 @@ export class Module {
     this.providers = providers ?? new Map()
   }
 
-  provide<T>(token: ProviderToken<T>, factory: ProviderFactory<T>): this {
-    if (token._.group) {
-      this.provideGroupToken(token as GroupProviderToken<T>, factory)
+  provide<T>(token: ProviderToken<T>, factory: ProviderFactory<T>): this
+  provide<T>(
+    tokenizedFactory: TokenizedProviderFactory<T, ProviderToken<T>>
+  ): this
+
+  provide<T>(
+    tokenizedFactory: TokenizedProviderFactory<T, ProviderToken<T>>,
+    customFactory: ProviderFactory<T>
+  ): this
+
+  provide<T>(
+    token: ProviderToken<T> | TokenizedProviderFactory<T, ProviderToken<T>>,
+    factory?: ProviderFactory<T>
+  ): this {
+    const normalizedToken: ProviderToken<T> =
+      'token' in token ? token.token : token
+
+    const normalizedFactory: ProviderFactory<T> =
+      typeof token === 'function' && !factory ? token : factory!
+
+    if (normalizedToken._.group) {
+      this.provideGroupToken(
+        normalizedToken as GroupProviderToken<T>,
+        normalizedFactory
+      )
     } else {
-      this.provideSingleToken(token as SingleProviderToken<T>, factory)
+      this.provideSingleToken(
+        normalizedToken as SingleProviderToken<T>,
+        normalizedFactory
+      )
     }
 
     return this

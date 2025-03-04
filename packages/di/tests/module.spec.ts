@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest'
 import {
   createModule,
   createProviderToken,
+  defineProvider,
   defineStaticProvider,
   Module,
 } from '../src'
-import { createGroupProviderToken } from '../src/helpers'
+import { createGroupProviderToken, defineProviderFactory } from '../src/helpers'
 
 // Test helper class that extends Module to expose protected properties for testing
 class TestModule extends Module {
@@ -75,6 +76,66 @@ describe('Module', () => {
     const module = new Module(moduleName)
 
     expect(module.moduleName).toBe(moduleName)
+  })
+
+  it('should provide by .token', async () => {
+    const provider = defineProvider(() => 'test')
+
+    const module = createTestModule().provide(provider)
+
+    expect(module.getProviders().get(provider.token)).toStrictEqual({
+      group: false,
+      factory: provider,
+    })
+  })
+
+  it('should provide custom factory by tokenizable.token', async () => {
+    const provider = defineProvider(() => 'test')
+    const rewriteProvider = defineProviderFactory(() => 'test-2')
+
+    const module = createTestModule().provide(provider, rewriteProvider)
+
+    expect(module.getProviders().get(provider.token)).toStrictEqual({
+      group: false,
+      factory: rewriteProvider,
+    })
+  })
+
+  it('should provide group tokenizable factory has group token', async () => {
+    const groupToken = createGroupProviderToken<string>()
+
+    const provider1 = defineProvider(() => 'test', groupToken)
+    const provider2 = defineProvider(() => 'test-2', groupToken)
+
+    const module = createTestModule().provide(provider1).provide(provider2)
+
+    expect(module.getProviders().get(groupToken)).toStrictEqual({
+      group: true,
+      factories: [provider1, provider2],
+    })
+  })
+
+  it('should provide by .token', async () => {
+    const provider = defineProvider(() => 'test')
+
+    const module = createTestModule().provide(provider)
+
+    expect(module.getProviders().get(provider.token)).toStrictEqual({
+      group: false,
+      factory: provider,
+    })
+  })
+
+  it('should provide custom factory by tokenizable.token', async () => {
+    const provider = defineProvider(() => 'test')
+    const rewriteProvider = defineProviderFactory(() => 'test-2')
+
+    const module = createTestModule().provide(provider, rewriteProvider)
+
+    expect(module.getProviders().get(provider.token)).toStrictEqual({
+      group: false,
+      factory: rewriteProvider,
+    })
   })
 
   describe('import', () => {
@@ -176,6 +237,26 @@ describe('Module', () => {
       expect(providers.has(Provider2)).toBe(true)
       expect(providers.has(Provider3)).toBe(true)
     })
+
+    it('should merge group-type providers when importing', () => {
+      const token = createGroupProviderToken<string>()
+
+      const module1 = createTestModule()
+      const module2 = createModule()
+
+      const provider1 = defineStaticProvider('test1')
+      const provider2 = defineStaticProvider('test2')
+
+      module1.provide(token, provider1)
+      module2.provide(token, provider2)
+
+      module1.import(module2)
+
+      expect(module1.getProviders().get(token)).toStrictEqual({
+        group: true,
+        factories: [provider1, provider2],
+      })
+    })
   })
 
   describe('black box', () => {
@@ -264,26 +345,6 @@ describe('Module', () => {
       expect(() =>
         module.provide(token, defineStaticProvider('test-2'))
       ).toThrow()
-    })
-
-    it('should merge group-type providers when importing', () => {
-      const token = createGroupProviderToken<string>()
-
-      const module1 = createTestModule()
-      const module2 = createModule()
-
-      const provider1 = defineStaticProvider('test1')
-      const provider2 = defineStaticProvider('test2')
-
-      module1.provide(token, provider1)
-      module2.provide(token, provider2)
-
-      module1.import(module2)
-
-      expect(module1.getProviders().get(token)).toStrictEqual({
-        group: true,
-        factories: [provider1, provider2],
-      })
     })
 
     it('should throw on import if same symbol modules have different types in different modules', () => {

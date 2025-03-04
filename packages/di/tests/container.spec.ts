@@ -8,7 +8,7 @@ import {
   ProvideScope,
 } from '../src'
 import { describe, expect, it, vitest } from 'vitest'
-import { createGroupProviderToken } from '../src/helpers'
+import { createGroupProviderToken, defineProviderFactory } from '../src/helpers'
 
 describe('Container', () => {
   it('createContainer should be a function', () => {
@@ -30,6 +30,21 @@ describe('Container', () => {
     const returnValue = container.provide(EmptyProvider, emptyProviderFactory)
 
     expect(returnValue).toBeInstanceOf(Container)
+  })
+
+  it('should not throw on simoultaneous injection of multiple providers', () => {
+    const provider1 = defineStaticProvider('test-1')
+
+    const container = createContainer().provide(provider1)
+
+    expect(
+      Promise.all([
+        container.inject(provider1),
+        container.inject(provider1),
+        container.inject(provider1),
+        container.inject(provider1),
+      ])
+    ).resolves.toStrictEqual(['test-1', 'test-1', 'test-1', 'test-1'])
   })
 
   describe('single-type providers', () => {
@@ -226,6 +241,31 @@ describe('Container', () => {
       )
 
       expect(() => container.inject(CircularToken)).rejects.toThrowError()
+    })
+
+    it('should inject by tokenizable.token', async () => {
+      const provider = defineProvider(() => {
+        return 'test'
+      })
+
+      const container = createContainer().provide(provider)
+
+      const injected = await container.inject(provider)
+      expect(injected).toBe('test')
+    })
+
+    it('should inject overriden version by tokenizable.token', async () => {
+      const provider = defineProvider(() => {
+        return 'test'
+      })
+
+      const overrideProvider = defineProviderFactory(() => 'test-2')
+
+      const container = createContainer().provide(provider, overrideProvider)
+
+      const injected = await container.inject(provider)
+
+      expect(injected).toBe('test-2')
     })
   })
 
