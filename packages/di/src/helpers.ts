@@ -68,7 +68,8 @@ export function defineStaticProvider<T, TToken extends ProviderToken<T>>(
 }
 
 export function defineProvider<T>(
-  factory: ProviderFactory<T>
+  factory: ProviderFactory<T>,
+  name?: string
 ): TokenizedProviderFactory<T, SingleProviderToken<T>>
 
 export function defineProvider<T, TToken extends ProviderToken<T>>(
@@ -78,9 +79,14 @@ export function defineProvider<T, TToken extends ProviderToken<T>>(
 
 export function defineProvider<T, TToken extends ProviderToken<T>>(
   factory: ProviderFactory<T>,
-  token?: TToken
+  tokenOrName?: TToken | string
 ): TokenizedProviderFactory<T, TToken> {
+  const token =
+    typeof tokenOrName === 'string' || !tokenOrName
+      ? createProviderToken(factory, tokenOrName)
+      : tokenOrName
+
   return Object.assign(factory, {
-    token: token ?? createProviderToken(factory),
+    token,
   }) as TokenizedProviderFactory<T, TToken>
 }
