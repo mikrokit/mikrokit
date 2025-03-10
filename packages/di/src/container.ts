@@ -1,11 +1,11 @@
-import { Module } from './module'
+import { Module } from './module.js'
 import type {
   GroupProviderToken,
   Injector,
   ProviderToken,
   SingleProviderToken,
   Tokenized,
-} from './types'
+} from './types.js'
 
 export enum ProvideScope {
   TRANSIENT = 'transient',

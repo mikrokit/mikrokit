@@ -4,7 +4,7 @@ import type {
   ProviderToken,
   SingleProviderToken,
   TokenizedProviderFactory,
-} from './types'
+} from './types.js'
 
 export const createProviderToken = <T>(
   _factory?: ProviderFactory<T>,

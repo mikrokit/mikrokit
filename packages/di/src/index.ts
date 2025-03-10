@@ -1,5 +1,5 @@
-import { createContainer, Container, ProvideScope } from './container'
-import { createModule, Module } from './module'
+import { createContainer, Container, ProvideScope } from './container.js'
+import { createModule, Module } from './module.js'
 import {
   createProviderToken,
   createGroupProviderToken,
@@ -8,14 +8,14 @@ import {
   defineStaticProviderFactory,
   defineProvider,
   attachProviderToken,
-} from './helpers'
+} from './helpers.js'
 import type {
   Injector,
   ProviderFactory,
   ProviderToken,
   Tokenized,
   TokenizedProviderFactory,
-} from './types'
+} from './types.js'
 
 export {
   createContainer,

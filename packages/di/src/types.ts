@@ -1,4 +1,4 @@
-import type { ProvideScope } from './container'
+import type { ProvideScope } from './container.js'
 
 export interface Injector {
   inject<T>(token: SingleProviderToken<T>, scope?: ProvideScope): Promise<T>

@@ -4,7 +4,7 @@ import type {
   ProviderToken,
   SingleProviderToken,
   TokenizedProviderFactory,
-} from './types'
+} from './types.js'
 
 export type InternalGroupProviderDefinition = {
   group: true
