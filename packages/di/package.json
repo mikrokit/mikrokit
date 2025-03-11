@@ -1,7 +1,7 @@
 {
   "name": "@mikrokit/di",
   "description": "A lightweight TypeScript dependency injection container that uses only strip-tipes compliant methodologies and does not rely on reflect-metadata",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "author": "Artem Tarasenko <shabashab.04@gmail.com>",
   "homepage": "https://github.com/mikrokit/mikrokit",
   "license": "MIT",
@@ -17,21 +17,33 @@
     "typesafe"
   ],
   "type": "module",
-  "types": "dist/index.d.ts",
-  "main": "dist/index.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "import": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "require": {
+      "types": "./dist/index.d.cts",
+      "require": "./dist/index.cjs"
+    }
+  },
   "files": [
     "dist/",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean --sourcemap",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "prepublish": "pnpm run build"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "3.0.7",
+    "tsup": "~8.4.0",
     "typescript": "~5.7.3",
     "vitest": "~3.0.7"
   }
