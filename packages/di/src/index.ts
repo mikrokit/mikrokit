@@ -13,6 +13,8 @@ import type {
   Injector,
   ProviderFactory,
   ProviderToken,
+  SingleProviderToken,
+  GroupProviderToken,
   Tokenized,
   TokenizedProviderFactory,
 } from './types.js'
@@ -33,6 +35,8 @@ export {
   type Injector,
   type ProviderFactory,
   type ProviderToken,
+  type SingleProviderToken,
+  type GroupProviderToken,
   type TokenizedProviderFactory,
   type Tokenized,
 }
