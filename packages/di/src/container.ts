@@ -140,7 +140,7 @@ export class Container extends Module implements Injector {
 
     const result: T[] = []
     for (const factory of definition.factories) {
-      result.push(await factory(this))
+      result.push(await factory(new Container(this, token)))
     }
 
     if (scope === ProvideScope.SINGLETON) {

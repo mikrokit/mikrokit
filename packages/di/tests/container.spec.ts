@@ -32,12 +32,12 @@ describe('Container', () => {
     expect(returnValue).toBeInstanceOf(Container)
   })
 
-  it('should not throw on simoultaneous injection of multiple providers', () => {
+  it('should not throw on simoultaneous injection of multiple providers', async () => {
     const provider1 = defineStaticProvider('test-1')
 
     const container = createContainer().provide(provider1)
 
-    expect(
+    await expect(
       Promise.all([
         container.inject(provider1),
         container.inject(provider1),
@@ -64,7 +64,7 @@ describe('Container', () => {
       expect(value).toBe(staticValue)
     })
 
-    it('should throw if trying to inject value that was not provided before', () => {
+    it('should throw if trying to inject value that was not provided before', async () => {
       const NonExistingProvider = createProviderToken<{}>(
         undefined,
         'NonExistingProvider'
@@ -72,7 +72,9 @@ describe('Container', () => {
 
       const container = createContainer()
 
-      expect(() => container.inject(NonExistingProvider)).rejects.toThrowError()
+      await expect(() =>
+        container.inject(NonExistingProvider)
+      ).rejects.toThrowError()
     })
 
     it('should not call provider constructor before it is injected', () => {
@@ -212,7 +214,7 @@ describe('Container', () => {
       expect(provider3Factory).toBeCalledTimes(1)
     })
 
-    it('should throw if trying to inject group-type provider as single-type one', () => {
+    it('should throw if trying to inject group-type provider as single-type one', async () => {
       const token = createGroupProviderToken<string>()
 
       const container = createContainer()
@@ -222,12 +224,12 @@ describe('Container', () => {
       // @ts-expect-error - testing private property change
       token._.group = false
 
-      expect(() => container.inject(token)).rejects.toThrowError(
+      await expect(() => container.inject(token)).rejects.toThrowError(
         'Trying to inject group-type provider Symbol() as single-type provider'
       )
     })
 
-    it('should throw on circular dependency with single-type token', () => {
+    it('should throw on circular dependency with single-type token', async () => {
       const CircularToken = createProviderToken<string>()
       const circularDependencyProvider = defineProvider(async (injector) => {
         await injector.inject(CircularToken)
@@ -240,7 +242,7 @@ describe('Container', () => {
         circularDependencyProvider
       )
 
-      expect(() => container.inject(CircularToken)).rejects.toThrowError()
+      await expect(() => container.inject(CircularToken)).rejects.toThrowError()
     })
 
     it('should inject by tokenizable.token', async () => {
@@ -348,7 +350,7 @@ describe('Container', () => {
       expect(result2).not.toBe(result3)
     })
 
-    it('should throw if trying to inject single-type provider as group-type one', () => {
+    it('should throw if trying to inject single-type provider as group-type one', async () => {
       const token = createProviderToken<string>()
 
       const container = createContainer()
@@ -358,13 +360,13 @@ describe('Container', () => {
       // @ts-expect-error - testing private property change
       token._.group = true
 
-      expect(() => container.inject(token)).rejects.toThrowError(
+      await expect(() => container.inject(token)).rejects.toThrowError(
         'Trying to inject single-type provider Symbol() as group-type provider'
       )
     })
 
     it('should throw on circular dependency with group-type token', async () => {
-      const token = createGroupProviderToken<string>()
+      const token = createGroupProviderToken<string>('Test')
 
       const provider1 = defineProvider(async (injector) => {
         await injector.inject(token)
@@ -374,7 +376,9 @@ describe('Container', () => {
 
       const container = createContainer().provide(token, provider1)
 
-      expect(() => container.inject(token)).rejects.toThrowError()
+      await expect(() => container.inject(token)).rejects.toThrowError(
+        'Provider Symbol(Test) is already being instantiated. This error can be caused by either a circular dependency or not awaiting the inject calls'
+      )
     })
   })
 })
