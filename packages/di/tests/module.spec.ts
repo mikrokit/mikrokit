@@ -71,6 +71,26 @@ describe('Module', () => {
     }).toThrowError('Trying to re-provide single-type provider for Symbol()')
   })
 
+  it('should override token when providing already provided token with parameter override = true', () => {
+    const staticValue = { test: 'value' }
+    const staticValue2 = { test: 'value2' }
+    const providerFactory = defineStaticProvider(staticValue)
+    const providerFactory2 = defineStaticProvider(staticValue2)
+    const Provider = createProviderToken(providerFactory)
+
+    const module = createTestModule()
+    module.provide(Provider, providerFactory)
+
+    expect(() => {
+      module.provide(Provider, providerFactory2, { override: true })
+    }).not.toThrowError()
+
+    expect(module.getProviders().get(Provider)).toStrictEqual({
+      group: false,
+      factory: providerFactory2,
+    })
+  })
+
   it('should allow creating a module with a name', () => {
     const moduleName = 'TestModule'
     const module = new Module(moduleName)

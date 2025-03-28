@@ -50,3 +50,13 @@ export type TokenizedProviderFactory<
 > = Tokenized<ProviderFactory<T>, T, TToken>
 
 export type ProviderFactory<T> = (injector: Injector) => Promise<T> | T
+
+export type ProvideOptions = {
+  /**
+   * If `true`, function will not throw an error if the token is already provided.
+   * If the token is not provided already, it will be provided as usual
+   * @default false
+   * @description We only recommend using this during tests, to mock some dependencies
+   */
+  override: boolean
+}

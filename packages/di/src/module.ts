@@ -1,10 +1,13 @@
 import type {
   GroupProviderToken,
+  ProvideOptions,
   ProviderFactory,
   ProviderToken,
   SingleProviderToken,
+  Tokenized,
   TokenizedProviderFactory,
 } from './types.js'
+import { mergeDefaults } from './utils.js'
 
 export type InternalGroupProviderDefinition = {
   group: true
@@ -21,6 +24,10 @@ export type InternalProviderDefinition =
   | InternalGroupProviderDefinition
 
 export class Module {
+  private static readonly DEFAULT_PROVIDE_OPTIONS: ProvideOptions = {
+    override: false,
+  }
+
   protected providers: Map<Symbol, InternalProviderDefinition>
 
   constructor(
@@ -30,20 +37,29 @@ export class Module {
     this.providers = providers ?? new Map()
   }
 
-  provide<T>(token: ProviderToken<T>, factory: ProviderFactory<T>): this
+  provide<T>(
+    token: ProviderToken<T> | Tokenized<unknown, T>,
+    factory: ProviderFactory<T>,
+    options?: ProvideOptions
+  ): this
+
   provide<T>(
     tokenizedFactory: TokenizedProviderFactory<T, ProviderToken<T>>
   ): this
 
   provide<T>(
-    tokenizedFactory: TokenizedProviderFactory<T, ProviderToken<T>>,
-    customFactory: ProviderFactory<T>
-  ): this
-
-  provide<T>(
-    token: ProviderToken<T> | TokenizedProviderFactory<T, ProviderToken<T>>,
-    factory?: ProviderFactory<T>
+    token:
+      | ProviderToken<T>
+      | Tokenized<unknown, T>
+      | TokenizedProviderFactory<T, ProviderToken<T>>,
+    factory?: ProviderFactory<T>,
+    options?: Partial<ProvideOptions>
   ): this {
+    const normalizedOptions = mergeDefaults(
+      Module.DEFAULT_PROVIDE_OPTIONS,
+      options
+    )
+
     const normalizedToken: ProviderToken<T> =
       'token' in token ? token.token : token
 
@@ -58,7 +74,8 @@ export class Module {
     } else {
       this.provideSingleToken(
         normalizedToken as SingleProviderToken<T>,
-        normalizedFactory
+        normalizedFactory,
+        normalizedOptions
       )
     }
 
@@ -124,7 +141,8 @@ export class Module {
 
   private provideSingleToken<T>(
     token: SingleProviderToken<T>,
-    factory: ProviderFactory<T>
+    factory: ProviderFactory<T>,
+    options: ProvideOptions
   ) {
     if (this.providers.has(token)) {
       const existingProvider = this.providers.get(token)!
@@ -135,9 +153,11 @@ export class Module {
         )
       }
 
-      throw new Error(
-        'Trying to re-provide single-type provider for ' + token.toString()
-      )
+      if (!options.override) {
+        throw new Error(
+          'Trying to re-provide single-type provider for ' + token.toString()
+        )
+      }
     }
 
     this.providers.set(token, {
