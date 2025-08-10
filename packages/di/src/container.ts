@@ -232,7 +232,8 @@ export class Container extends Module implements Injector {
           lazyInjection.token,
           lazyInjection.scope,
           // Exclude the latest token from the stack as it is already resolved
-          this.injectionStack.slice(0, -1)
+          []
+          // this.injectionStack.slice(0, -1)
         )
         lazyInjection.resolve(resolvedValue)
       } catch (error) {

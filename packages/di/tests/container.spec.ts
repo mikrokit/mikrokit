@@ -6,6 +6,7 @@ import {
   type Injector,
   Container,
   ProvideScope,
+  LazyInjected,
 } from '../src'
 import { describe, expect, it, vitest } from 'vitest'
 import { createGroupProviderToken, defineProviderFactory } from '../src/helpers'
@@ -487,6 +488,47 @@ describe('Container', () => {
       await expect(() => container.inject(provider1Token)).rejects.toThrowError(
         'Failed to resolve lazy injection for token Symbol(): Test error from lazy injection'
       )
+    })
+
+    it('should inject correctly cycle of 3 providers', async () => {
+      type CyclicProvdier = {
+        value: string
+        child: any
+      }
+
+      const provider1Token = createProviderToken<CyclicProvdier>()
+      const provider2Token = createProviderToken<CyclicProvdier>()
+      const provider3Token = createProviderToken<CyclicProvdier>()
+
+      const provider1 = defineProviderFactory(async (injector) => {
+        const provider2 = await injector.inject(provider2Token)
+
+        return { value: 'provider1', child: provider2 }
+      })
+
+      const provider2 = defineProviderFactory(async (injector) => {
+        const provider3 = await injector.inject(provider3Token)
+
+        return { value: 'provider2', child: provider3 }
+      })
+
+      const provider3 = defineProviderFactory(async (injector) => {
+        const provider1 = injector.injectLazy(provider1Token)
+
+        return { value: 'provider3', child: provider1 }
+      })
+
+      const container = createContainer()
+        .provide(provider1Token, provider1)
+        .provide(provider2Token, provider2)
+        .provide(provider3Token, provider3)
+
+      const injectedProvider1 = await container.inject(provider1Token)
+
+      expect(injectedProvider1.value).toBe('provider1')
+      expect(injectedProvider1.child.value).toBe('provider2')
+      expect(injectedProvider1.child.child.value).toBe('provider3')
+      expect(injectedProvider1.child.child.child.value.value).toBe('provider1')
     })
   })
 })
