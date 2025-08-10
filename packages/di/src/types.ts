@@ -18,6 +18,11 @@ export interface Injector {
     token: SingleProviderToken<T>,
     scope?: ProvideScope
   ): LazyInjected<T>
+
+  injectLazy<TOriginalTokenized, T>(
+    token: Tokenized<TOriginalTokenized, T, SingleProviderToken<T>>,
+    scope?: ProvideScope
+  ): LazyInjected<T>
 }
 
 export type SingleProviderToken<T> = Symbol & {

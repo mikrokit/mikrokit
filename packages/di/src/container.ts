@@ -94,12 +94,24 @@ export class Container extends Module implements Injector {
   injectLazy<T>(
     token: SingleProviderToken<T>,
     scope?: ProvideScope
+  ): LazyInjected<T>
+
+  injectLazy<TOriginalTokenized, T>(
+    token: Tokenized<TOriginalTokenized, T, SingleProviderToken<T>>,
+    scope?: ProvideScope
+  ): LazyInjected<T>
+
+  injectLazy<T>(
+    token: SingleProviderToken<T> | Tokenized<any, T>,
+    scope?: ProvideScope
   ): LazyInjected<T> {
+    const normalizedToken = 'token' in token ? token.token : token
     let value: T | undefined
 
-    this.enqueueLazyInjection(token, scope ?? ProvideScope.SINGLETON).then(
-      (resolvedProvider) => (value = resolvedProvider)
-    )
+    this.enqueueLazyInjection<T>(
+      normalizedToken,
+      scope ?? ProvideScope.SINGLETON
+    ).then((resolvedProvider) => (value = resolvedProvider))
 
     return {
       get value(): T {
