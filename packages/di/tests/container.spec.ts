@@ -381,4 +381,112 @@ describe('Container', () => {
       )
     })
   })
+
+  describe('lazy injection of cycle dependency providers', () => {
+    it('should not throw on lazy injection of cycle dependency providers', async () => {
+      const provider1Token = createProviderToken<{ getValue(): string }>(
+        undefined,
+        'provider1'
+      )
+      const provider2Token = createProviderToken<{ getValue(): string }>(
+        undefined,
+        'provider2'
+      )
+
+      const provider1 = defineProviderFactory(async (injector) => {
+        const provider2 = injector.injectLazy(provider2Token)
+
+        const getValue = (() => {
+          let recursiveCheck = false
+
+          return () => {
+            if (recursiveCheck) {
+              return 'recursive'
+            }
+
+            recursiveCheck = true
+            const value = provider2.value.getValue()
+
+            return value + ':provider1'
+          }
+        })()
+
+        return {
+          getValue,
+        }
+      })
+
+      const provider2 = defineProviderFactory(async (injector) => {
+        const provider1 = await injector.inject(provider1Token)
+
+        const getValue = () => {
+          return provider1.getValue() + ':provider2'
+        }
+
+        return { getValue }
+      })
+
+      const container = createContainer()
+        .provide(provider1Token, provider1)
+        .provide(provider2Token, provider2)
+
+      const provider1Instance = await container.inject(provider1Token)
+      const provider2Instance = await container.inject(provider2Token)
+
+      expect(provider1Instance.getValue()).toBe('recursive:provider2:provider1')
+      expect(provider2Instance.getValue()).toBe('recursive:provider2')
+    })
+
+    it('should throw if lazy injected provider is used inside the provider constructor', async () => {
+      const provider1Token = createProviderToken<{}>()
+      const provider2Token = createProviderToken<{}>()
+
+      const provider1 = defineProviderFactory(async (injector) => {
+        const provider2 = injector.injectLazy(provider2Token)
+
+        // This should throw
+        // eslint-disable-next-line no-unused-expressions
+        provider2.value
+
+        return {}
+      })
+
+      const provider2 = defineProviderFactory(async (injector) => {
+        const provider1 = await injector.inject(provider1Token)
+
+        return {}
+      })
+
+      const container = createContainer()
+        .provide(provider1Token, provider1)
+        .provide(provider2Token, provider2)
+
+      await expect(() => container.inject(provider1Token)).rejects.toThrowError(
+        'Lazy provider is not yet resolved. Do not use lazy-injected providers before the provider construction ends.'
+      )
+    })
+
+    it('should rethrow error from lazy injection', async () => {
+      const provider1Token = createProviderToken<{}>()
+      const provider2Token = createProviderToken<{}>()
+
+      const provider1 = defineProviderFactory(async (injector) => {
+        const provider2 = injector.injectLazy(provider2Token)
+
+        return {}
+      })
+
+      const provider2 = defineProviderFactory(async () => {
+        throw new Error('Test error from lazy injection')
+      })
+
+      const container = createContainer()
+        .provide(provider1Token, provider1)
+        .provide(provider2Token, provider2)
+
+      await expect(() => container.inject(provider1Token)).rejects.toThrowError(
+        'Failed to resolve lazy injection for token Symbol(): Test error from lazy injection'
+      )
+    })
+  })
 })

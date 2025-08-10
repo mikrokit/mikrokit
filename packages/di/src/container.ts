@@ -2,6 +2,7 @@ import { Module } from './module.js'
 import type {
   GroupProviderToken,
   Injector,
+  LazyInjected,
   ProviderToken,
   SingleProviderToken,
   Tokenized,
@@ -19,7 +20,17 @@ export class Container extends Module implements Injector {
   // Tracks active injecting symbols in order to see if we stumbled upon a circular dependency
   private readonly injectionStack: Symbol[]
 
-  private constructor(parentContainer?: Container, injectionItem?: Symbol) {
+  private readonly lazyInjectionsQueue: {
+    token: SingleProviderToken<any>
+    scope: ProvideScope
+    resolve: (value: any) => void
+  }[] = []
+
+  private constructor(
+    parentContainer?: Container,
+    injectionItem?: Symbol,
+    injectionStack?: Symbol[]
+  ) {
     super(parentContainer?.moduleName, parentContainer?.providers)
 
     this.instantiatedSingleSingletonProviders =
@@ -28,7 +39,10 @@ export class Container extends Module implements Injector {
       parentContainer?.instantiatedGroupSingletonProviders ?? new Map()
 
     this.injectionStack = injectionItem
-      ? [...(parentContainer?.injectionStack ?? []), injectionItem]
+      ? [
+          ...(injectionStack ?? parentContainer?.injectionStack ?? []),
+          injectionItem,
+        ]
       : []
   }
 
@@ -77,9 +91,33 @@ export class Container extends Module implements Injector {
     return result
   }
 
+  injectLazy<T>(
+    token: SingleProviderToken<T>,
+    scope?: ProvideScope
+  ): LazyInjected<T> {
+    let value: T | undefined
+
+    this.enqueueLazyInjection(token, scope ?? ProvideScope.SINGLETON).then(
+      (resolvedProvider) => (value = resolvedProvider)
+    )
+
+    return {
+      get value(): T {
+        if (!value) {
+          throw new Error(
+            'Lazy provider is not yet resolved. Do not use lazy-injected providers before the provider construction ends.'
+          )
+        }
+
+        return value
+      },
+    }
+  }
+
   private async injectSingle<T>(
     token: SingleProviderToken<T>,
-    scope: ProvideScope
+    scope: ProvideScope,
+    injectionStack?: Symbol[]
   ): Promise<T> {
     if (scope === ProvideScope.SINGLETON) {
       const instantiatedProvider =
@@ -104,11 +142,15 @@ export class Container extends Module implements Injector {
       )
     }
 
-    const result = await definition.factory(new Container(this, token))
+    const container = new Container(this, token, injectionStack)
+
+    const result = await definition.factory(container)
 
     if (scope === ProvideScope.SINGLETON) {
       this.instantiatedSingleSingletonProviders.set(token, result)
     }
+
+    await container.dequeueLazyInjections()
 
     return result
   }
@@ -140,7 +182,11 @@ export class Container extends Module implements Injector {
 
     const result: T[] = []
     for (const factory of definition.factories) {
-      result.push(await factory(new Container(this, token)))
+      const container = new Container(this, token)
+
+      result.push(await factory(container))
+
+      await container.dequeueLazyInjections()
     }
 
     if (scope === ProvideScope.SINGLETON) {
@@ -148,6 +194,41 @@ export class Container extends Module implements Injector {
     }
 
     return result
+  }
+
+  private enqueueLazyInjection<T>(
+    token: SingleProviderToken<T>,
+    scope: ProvideScope
+  ): Promise<T> {
+    return new Promise((resolve) => {
+      const resolveLazy = (value: T) => {
+        resolve(value)
+      }
+
+      this.lazyInjectionsQueue.push({
+        token,
+        scope,
+        resolve: resolveLazy,
+      })
+    })
+  }
+
+  private async dequeueLazyInjections(): Promise<void> {
+    for (const lazyInjection of this.lazyInjectionsQueue) {
+      try {
+        const resolvedValue = await this.injectSingle(
+          lazyInjection.token,
+          lazyInjection.scope,
+          // Exclude the latest token from the stack as it is already resolved
+          this.injectionStack.slice(0, -1)
+        )
+        lazyInjection.resolve(resolvedValue)
+      } catch (error) {
+        throw new Error(
+          `Failed to resolve lazy injection for token ${lazyInjection.token.toString()}: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
+    }
   }
 }
 

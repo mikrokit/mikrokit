@@ -119,6 +119,83 @@ const container = createContainer().provide(Logger).provide(Fetcher)
 const fetcher = await container.inject(Fetcher)
 ```
 
+# Circular dependencies
+
+Though it is generally a bad practice that code has any circular dependencies, there are cases when there is no other way to overcome this (for example, in chat-bot development). For this matter, there is a mechanism of "lazy" dependency injection.
+
+To show an example, let's use existing `Logger` and `Fetcher` and extend `Logger` to send error logs over HTTP:
+
+```ts
+import { defineProvider } from '@mikrokit/di'
+import { Logger } from './logger'
+
+export const Fetcher = defineProvider(async (injector) => {
+  const logger = await injector.inject(Logger)
+
+  const postData = async (url: string, data: any) => {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+    } catch (e) {
+      logger.error(`${e}`)
+    }
+  }
+
+  const fetchAndLogData = async (url: string) => {
+    try {
+      const response = await fetch(url)
+      const data = await response.text()
+      logger.info(data)
+    } catch (e) {
+      logger.error(`${e}`)
+    }
+  }
+
+  return {
+    postData,
+    fetchAndLogData,
+  }
+})
+```
+
+```ts
+import { defineProvider } from '@mikrokit/di'
+
+export const Logger = defineProvider((injector) => {
+  const fetcher = injector.injectLazy(Fetcher)
+
+  const info = (message: string) => {
+    const fullMessage = `[INFO]: ${message}`
+
+    console.log(fullMessage)
+    fetcher.value.postData('https://myserver.com/logs', fullMessage)
+  }
+
+  const error = (message: string) => {
+    const fullMessage = `[ERROR]: ${message}`
+
+    console.log(fullMessage)
+    fetcher.value.postData('https://myserver.com/logs', fullMessage)
+  }
+
+  return {
+    info,
+    error,
+  }
+})
+```
+
+In this case, we are using `injectLazy` API to get `Fetcher` inside `Logger` though `Fetcher` is already dependent on `Logger`. When using this API, `Fetcher` instantiation happens right after the `Logger` is fully instanciated.
+
+The big limitation of lazy-injected providers is that it is only possible to use lazy-injected providers after the provider has been fully built, as before that they are not instanciated at all.
+
+The injected provider is available via `.value` getter of the object returned by `injectLazy`. As when using `injectLazy` the injection doesn't happen before the provider is instanciated, it isn't needed to await `injectLazy` call.
+
 # Basic concepts
 
 ## Provider

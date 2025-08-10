@@ -13,6 +13,11 @@ export interface Injector {
     tokenized: Tokenized<TOriginalTokenized, T, GroupProviderToken<T>>,
     scope?: ProvideScope
   ): Promise<T[]>
+
+  injectLazy<T>(
+    token: SingleProviderToken<T>,
+    scope?: ProvideScope
+  ): LazyInjected<T>
 }
 
 export type SingleProviderToken<T> = Symbol & {
@@ -60,3 +65,5 @@ export type ProvideOptions = {
    */
   override: boolean
 }
+
+export type LazyInjected<T> = Readonly<{ value: T }>

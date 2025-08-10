@@ -17,6 +17,7 @@ import type {
   GroupProviderToken,
   Tokenized,
   TokenizedProviderFactory,
+  LazyInjected,
 } from './types.js'
 
 export {
@@ -39,4 +40,5 @@ export {
   type GroupProviderToken,
   type TokenizedProviderFactory,
   type Tokenized,
+  type LazyInjected,
 }
